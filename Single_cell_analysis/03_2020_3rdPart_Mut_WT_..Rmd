@@ -1,0 +1,189 @@
+---
+title: "results for PJ 190909"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r 1}
+# setup your own paths....
+###### REQUIRED LIBRARIES
+library(ggplot2)
+library(readr)
+library(readxl)
+library(data.table)
+library(rowr)
+library(reticulate)
+library(scatterplot3d)
+library(rgl) #interactive 3d plotting
+library(colorspace)
+library(ggmin)
+library(grid)
+library(gridExtra)
+library(future)
+library(sjmisc)
+
+library(velocyto.R)
+library(SeuratWrappers)
+library(Seurat)
+library(tidyverse)
+library(dplyr)
+
+getwd()
+```
+
+```{r 2 part1}
+getwd()
+library(velocyto.R)
+library(SeuratWrappers)
+
+
+```{r 2 part3}
+# LOAD
+getwd()
+setwd("/Users/davidtraver/sc_data_2020")
+sampleID <- paste0("14_drl_22hpf.etv2_wt_22hpf.etv2_mib_22hpf.fli1tp1_24hpf","_endo")
+name <- paste0(sampleID, ".rds")
+UNI <- readRDS(paste0("integratedObjects/",name))
+UNI
+# genes
+markerGenes <- data.frame(read_excel(file.path("Support/scSupport.xlsx"), sheet = "markerGenes", col_names=F, skip=0)) #load our table with markers
+#markerGenes <- data.frame(read_excel(file.path("../Support/scSupport.xlsx"), sheet = "markerGenesTimepoint", col_names=F, skip=0))
+str(markerGenes)
+  # Particular column select
+{  markerx <- as.vector(markerGenes[1:nrow(markerGenes),c(9,20)]) #column no. or markerGenes$HSC, was notch, but changed to HSCs
+  markerx <- markerx[!is.na(markerx)]
+  markert <- as.vector(markerx[1])
+  markerx <- as.vector(markerx[2:length(markerx)])
+}
+    markert
+    markerx
+    
+      markerx_UNI <- character()
+      markerx_UNI <- sapply(markerx, function(x) {sort(grep(pattern = paste0("^",x), rownames(UNI[["SCT"]]@data), value= T, ignore.case = T))})
+      markerx_UNI <- unlist(markerx_UNI)
+      markerx_UNI <- sort(unique(as.vector(markerx_UNI)))
+        markerx_UNI
+
+# idents
+  Idents(object = UNI) <- "customNames"
+  table(Idents(UNI))
+
+dim1 <- DimPlot(UNI, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+dim1
+
+  Idents(object = UNI) <- "OLDsampleID"
+  table(Idents(UNI))
+
+dim2 <- DimPlot(UNI, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+dim2  
+  
+UNI <- subset(UNI, cells = WhichCells(UNI, ident = (c("etv2_wt_22hpf", "etv2_mib_22hpf"))), max.cells.per.ident = Inf, random.seed = 1)
+dim3 <- DimPlot(UNI, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+dim3
+
+#HM all endo
+All.markers <- FindAllMarkers(object = UNI, only.pos = T, min.pct = 0.25, logfc.threshold = 0.20, return.thresh = 0.1) #return.tresh to find the same as FindMarkers
+head(All.markers)
+write.csv(All.markers, "./export/190909/2/2_part3_DE_endothelium_22hpf_WTxMIB.csv")
+topAll <- All.markers %>% group_by(cluster) %>% arrange(desc(avg_logFC)) %>% top_n(20, avg_logFC) %>% filter(avg_logFC>0.1)
+topAll
+
+#levels(UNI)
+#levels(UNI) <- c("General Endothelium","Hemogenic endothelium","Pre-HCSs","BVECs","Endocardium","KVECs","SDECs")
+all <- DoHeatmap(UNI, features = topAll$gene, cells = WhichCells(UNI, idents = NULL, downsample = 250), group.by = "ident", group.bar = T, disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 5, hjust = 0.5, angle = 0, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+dim4a <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE) + labs(title="all endothelium_DE")
+dim4a
+
+
+#HM all endo 0 ribo
+ribo <- !grepl("^rp|^RPS|^RPL|^mt-", All.markers$gene)
+ribo
+All.markers0ribo <- All.markers[ribo,]
+topAll <- All.markers0ribo %>% group_by(cluster) %>% arrange(desc(avg_logFC)) %>% top_n(20, avg_logFC) %>% filter(avg_logFC>0.1)
+topAll
+
+all <- DoHeatmap(UNI, features = topAll$gene, cells = WhichCells(UNI, idents = NULL, downsample = 250), group.by = "ident", group.bar = T, disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 5, hjust = 0.5, angle = 0, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+dim4b <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE) + labs(title="all endothelium_DE no ribo")
+dim4b
+
+
+
+#HM for SDEC genes
+SDECgenes <- c("bmp4", "cxcr4a", "cxcr4b", "cldni", "tmsb1", "col7a1", "tp63", "lama5", "mmp30", "sparc", "dcn", "apoeb", "angptl4")  
+SDECgenes
+All.markers <- FindAllMarkers(object = UNI, features = SDECgenes, only.pos = T, min.pct = 0.0001, logfc.threshold = 0.00001, return.thresh = 1000) #return.tresh to find the same as FindMarkers
+topAll <- All.markers %>% group_by(cluster) %>% arrange(desc(avg_logFC)) %>% top_n(20, avg_logFC) %>% filter(avg_logFC>0.00001)
+topAll
+
+write.csv(All.markers, "./export/190909/2/2_part3_DE_endothelium-SDECgenes_22hpf_WTxMIB.csv")
+
+all <- DoHeatmap(UNI, features = topAll$gene, cells = WhichCells(UNI, idents = NULL, downsample = Inf), group.by = "ident", group.bar = T, disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 5, hjust = 0.5, angle = 0, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+dim4c <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE) + labs(title="mib vs wt SDEC genes")
+dim4c
+
+
+#HM notch
+all <- DoHeatmap(UNI, features = markerx_UNI, cells = WhichCells(UNI, idents = NULL, downsample = 250), group.by = "ident", group.bar = T, disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 5, hjust = 0.5, angle = 0, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+dim5 <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE) + labs(title="all endothelium_notch related")
+dim5
+
+  Idents(object = UNI) <- "customNames"
+  table(Idents(UNI))
+  
+UNIp <- subset(UNI, cells = WhichCells(UNI, ident = (c("Pre-HCSs", "Hemogenic endothelium"))), max.cells.per.ident = Inf, random.seed = 1)
+UNIp <- subset(UNI, cells = WhichCells(UNI, ident = (c("Hemogenic endothelium"))), max.cells.per.ident = Inf, random.seed = 1)
+dim6 <- DimPlot(UNIp, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+dim6
+FeaturePlot(UNIp, order = T, features = c("gfi1aa","myb", "cebpa"), pt.size=3, split.by = "OLDsampleID")
+  
+  table(Idents(UNIp))
+  Idents(object = UNIp) <- "OLDsampleID"
+  table(Idents(UNIp))
+
+
+all <- DoHeatmap(UNIp, features = markerx_UNI, cells = WhichCells(UNIp, idents = NULL, downsample = 50), group.by = "ident", group.bar = T, disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 5, hjust = 0.5, angle = 0, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+dim7 <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE) + labs(title="Pre-HCS and Hemogenic endothelium_notch related")
+dim7
+
+markerx_UNI[c(1,3,8,9)]
+
+#C1.markers <- FindMarkers(object = UNI, ident.1 = c("etv2_wt_22hpf"), ident.2 = c("etv2_mib_22hpf"), logfc.threshold = 0.20, min.pct = 0.25)
+#C1.markers <- cbind(gene = rownames(C1.markers), C1.markers)
+#head(C1.markers)
+#topC1a <- C1.markers %>% top_n(20, desc(avg_logFC)) %>% arrange(avg_logFC) %>% filter(avg_logFC < 0)
+#topC1b <- C1.markers %>% top_n(20, avg_logFC) %>% arrange(desc(avg_logFC)) %>% filter(avg_logFC > 0)
+#topC1 <- union(topC1a, topC1b)  %>% arrange(avg_logFC)
+#topC1
+#
+#all <- DoHeatmap(UNI, features = union(topC1a$gene, topC1b$gene), cells = WhichCells(UNI, idents = NULL, downsample = 25), group.by = "ident", group.bar = T, #disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 5, hjust = 0.5, angle = 0, draw.lines = T, raster = TRUE, combine = #TRUE, group.bar.height = 0.000000001)
+#dim5 <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE)
+#
+
+
+getwd()
+pdf(paste0("./export/190909/2/", "2_part3v2.pdf"), width=15,height=10)
+dim1
+dim2
+dim3
+dim4a
+dim4b
+dim5
+for (i in 1:ceiling(length(markerx_UNI))) {
+ tmp <- markerx_UNI[i]
+ plot <-     FeaturePlot(UNI, order = T, features = tmp, cols =c("light grey", "dark red"), min.cutoff= NA, max.cutoff= NA, reduction = "umap", dims = c(1,2), pt.size=2, ncol=2, split.by = "OLDsampleID")
+print(plot) + labs(title="all endothelium_notch related")}
+
+dim6
+dim7
+for (i in 1:ceiling(length(markerx_UNI))) {
+ tmp <- markerx_UNI[i]
+ plot <-     FeaturePlot(UNI, order = T, features = tmp, cols =c("light grey", "dark red"), min.cutoff= NA, max.cutoff= NA, reduction = "umap", dims = c(1,2), pt.size=2, ncol=2, split.by = "OLDsampleID")
+print(plot) + labs(title="Pre-HCS and Hemogenic endothelium_notch related")}
+dev.off()
+```
+
+```{r 3}
+{                           no <- 5

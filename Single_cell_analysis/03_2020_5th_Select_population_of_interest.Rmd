@@ -1,0 +1,225 @@
+---
+title: "results for PJ 190909"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r 1}
+# setup your own paths....
+###### REQUIRED LIBRARIES
+library(ggplot2)
+library(readr)
+library(readxl)
+library(data.table)
+library(rowr)
+library(reticulate)
+library(scatterplot3d)
+library(rgl) #interactive 3d plotting
+library(colorspace)
+library(ggmin)
+library(grid)
+library(gridExtra)
+library(future)
+library(sjmisc)
+
+library(velocyto.R)
+library(SeuratWrappers)
+library(Seurat)
+library(tidyverse)
+library(dplyr)
+
+```
+
+```{r 3}
+{                           no <- 5
+sampleID <- c("drl_tb",             #1
+              "drl_12s",            #2
+              "etv2_15s",           #3              
+              "./integratedObjects/14_drl_22hpf.etv2_wt_22hpf.etv2_mib_22hpf.fli1tp1_24hpf_endo", #4
+              "./integratedObjects/14_drl_22hpf.etv2_wt_22hpf.etv2_mib_22hpf.fli1tp1_24hpf", #5
+              "drl_22hpf",          #6             
+              "etv2_wt_22hpf",      #7
+              "etv2_mib_22hpf",     #8
+              "fli1tp1_24hpf"       #9
+              )[no] 
+name <- paste0(sampleID, ".rds")
+UNI <- readRDS(name)
+sampleID}
+
+#cellList <- list()
+  str(cellList)
+
+
+#generate list####
+DimPlot(UNI, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+  cells <- CellSelector(plot = DimPlot(object = UNI, reduction = "umap"))
+  cells <- WhichCells(UNI, ident = c(8))
+  str(cells)
+DimPlot(UNI, cells = cells, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+
+  cellsTEMP <- list()
+cellsTEMP[[paste0(sampleID, "-4")]] <- cells
+cellList <- c(cellList, cellsTEMP)
+  str(cellList)
+#saveRDS(cellList, file = paste0("./export/190909/3/cellList_5xxx.rds"))
+
+
+#test cells presence####
+#cells <- cellList[[4]]
+#cells
+#DimPlot(UNI, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+#DimPlot(UNI, cells = cells, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+
+
+#rename for velo####
+  head(WhichCells(UNI, ident = c()))
+cellListV <- list()
+cellListV <- rapply(cellList, function(x) {paste0(gsub("tb_", "tb_123_GRCz11.1:", x), "x")}, how = "replace") 
+cellListV <- rapply(cellListV, function(x) {       gsub("drl_12s_", "drl_12s_123_GRCz11.1:", x)}, how = "replace")
+cellListV <- rapply(cellListV, function(x) {       gsub("etv2_15s_", "etv2_15s_12_GRCz11.1:", x)}, how = "replace")
+cellListV <- rapply(cellListV, function(x) {       gsub("etv2_wt_22hpf_", "etv2_wt_22hpf_GRCz11.1:", x)}, how = "replace")
+cellListV <- rapply(cellListV, function(x) {       gsub("etv2_mib_22hpf_", "etv2_mib_22hpf_GRCz11.1:", x)}, how = "replace")
+cellListV <- rapply(cellListV, function(x) {       gsub("drl_22hpf_", "drl_22hpf_123_GRCz11.1:", x)}, how = "replace")
+cellListV <- rapply(cellListV, function(x) {       gsub("fli1tp1_24hpf_", "fli1tp1_24hpf_123_GRCz11.1:", x)}, how = "replace")
+  str(cellList)
+  str(cellListV)
+#saveRDS(cellListV, file = paste0("./export/190909/3/cellList_5Vxxx.rds"))
+
+
+#test cells presence for velo####
+  str(cellList)
+cellsV <- cellListV[[4]]
+cellsV <- cellsV[cellsV %in% WhichCells(UNI, ident = c())]
+DimPlot(UNI, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+DimPlot(UNI, cells = cellsV, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+
+
+#subsetting####
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_0.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_1.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_2.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_3.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_4.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_5.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_1V.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_2V.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_3V.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_4V.rds"))
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_5V.rds"))
+  str(cellList)
+  cells <- cellList[[4]]
+
+
+#1_1b+3+4
+sampleID <- "1_1b+3+4"
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_1.rds"))
+str(cellList)
+  UNI.01 <- subset(readRDS("drl_tb.rds"), cells = cellList[[2]])
+  UNI.02 <- subset(readRDS("etv2_15s.rds"), cells = cellList[[3]])
+  UNI.03 <- subset(readRDS("drl_22hpf.rds"), cells = cellList[[4]])
+  UNI.04 <- subset(readRDS("etv2_wt_22hpf.rds"), cells = cellList[[4]])
+  UNI.05 <- subset(readRDS("etv2_mib_22hpf.rds"), cells = cellList[[4]])
+  UNI.06 <- subset(readRDS("fli1tp1_24hpf.rds"), cells = cellList[[4]])
+  
+  
+#5_1b+3+4
+sampleID <- "1_1+2+3+4"
+cellList <- readRDS(file = paste0("./export/190909/3/cellList_5.rds"))
+str(cellList)
+  UNI.01 <- subset(readRDS("drl_tb.rds"), cells = cellList[[1]])
+  UNI.02 <- subset(readRDS("drl_12s.rds"), cells = cellList[[2]])
+  UNI.03 <- subset(readRDS("etv2_15s.rds"), cells = cellList[[3]])
+  UNI.04 <- subset(readRDS("drl_22hpf.rds"), cells = cellList[[4]])
+  UNI.05 <- subset(readRDS("etv2_wt_22hpf.rds"), cells = cellList[[4]])
+  UNI.06 <- subset(readRDS("etv2_mib_22hpf.rds"), cells = cellList[[4]])
+  UNI.07 <- subset(readRDS("fli1tp1_24hpf.rds"), cells = cellList[[4]])
+ 
+  
+#UNI.0346 <- merge(UNI.03, y = c(UNI.04,UNI.06), project = "UNI merge", merge.data = TRUE)
+#UNI.0346 <- SCTransform(object = UNI.0346, vars.to.regress = c("percent.mito", "nCount_RNA"), verbose = T, return.only.var.genes = F, min_cells=3)
+
+
+UNI <- merge(UNI.01, y = c(UNI.02, UNI.05, UNI.03, UNI.04, UNI.06, UNI.07))
+UNI <- merge(UNI.01, y = c(UNI.02, UNI.05))
+UNI <- SCTransform(object = UNI, vars.to.regress = c("percent.mito", "nCount_RNA"), verbose = T, return.only.var.genes = F, min_cells=3)
+
+
+#UNI.list <- list(UNI.01, UNI.02, UNI.05, UNI.0346)  
+#UNI.features <- SelectIntegrationFeatures(object.list = UNI.list, nfeatures = 3000)
+#UNI.list <- PrepSCTIntegration(object.list = UNI.list, anchor.features = UNI.features, verbose = T)
+#
+#UNI.anchors <- FindIntegrationAnchors(object.list = UNI.list, normalization.method = "SCT", anchor.features =   UNI.features, verbose = T, k.filter=30)#, dims = 1:30, k.filter = 200/140)
+  
+#UNI <- IntegrateData(anchorset = UNI.anchors, normalization.method = "SCT", verbose = T, dims = 1:20)
+#DefaultAssay(UNI) <- "integrated"
+
+Idents(object = UNI) <- "SCT_snn_res.0.5"
+UNI@meta.data[["SCT_snn_res.0.5old"]] <- Idents(object = UNI)
+
+
+
+UNI <- RunPCA(UNI, npcs = 30, verbose = T)
+UNI <- RunUMAP(UNI, reduction = "pca", dims = 1:20)
+UNI <- FindNeighbors(UNI, reduction = "pca", dims = 1:20)
+UNI <- FindClusters(UNI, resolution = 0.5)
+
+#  plan("multiprocess", workers = 4)
+#UNI <- ScaleData(UNI, vars.to.regress = c("percent.mito", "nCount_RNA"), assay = "SCT", verbose = T)
+#  plan("sequential")
+    
+DefaultAssay(UNI) <- "SCT"
+
+#UNIb <- UNI
+
+
+UNI@meta.data[["OLDsampleID"]] <- paste0(UNI@meta.data[["sampleID"]], "ORI")
+UNI@meta.data[["sampleID"]] <- "integrated"
+UNI[["OLDsampleID.clusters"]] <- paste0("c.", UNI@meta.data[["integrated_snn_res.0.5"]], ".", UNI@meta.data[["OLDsampleID"]])
+Idents(object = UNI) <- "integrated_snn_res.0.5" 
+
+
+
+p5 <- DimPlot(UNI, reduction = "umap", group.by = "sampleID", pt.size=3, label = T, label.size = 5) + theme(legend.position = "none")
+p6 <- DimPlot(UNI, reduction = "umap", group.by = "OLDsampleID", pt.size=3, label = T, label.size = 5)
+dim2 <- plot_grid(p5, p6, ncol = 2) + labs(title=paste0(sampleID, " (colors = new clusters)"))
+dim2
+
+dim3 <- DimPlot(UNI, reduction = "umap", split.by = "OLDsampleID", group.by = "sample.cluster_ID", label = T, pt.size=3, label.size = 3, ncol = 2) + labs(title=paste0(sampleID, " (colors = old clusters)")) + theme(legend.position = "none")
+
+Idents(object = UNI) <- "SCT_snn_res.0.5old" #"SCT_snn_res.0.5"
+dim4 <- DimPlot(UNI, reduction = "umap", split.by = "OLDsampleID", label = T, pt.size=3, label.size = 5, ncol = 2) + labs(title=paste0(sampleID, " (colors = old clusters)")) + theme(legend.position = "none")
+
+Idents(object = UNI) <- "SCT_snn_res.0.5" #"integrated_snn_res.0.5"
+dim6 <- DimPlot(UNI, reduction = "umap", split.by = "OLDsampleID", label = T, pt.size=3, label.size = 5, ncol = 2) + labs(title=paste0(sampleID, " (colors = new clusters)")) + theme(legend.position = "none")
+
+
+dim2
+dim3
+dim4
+dim6
+
+```
+
+```{r}
+getwd()
+
+
+
+
+pdf(paste0("./export/190909/", "1.pdf"), width=15,height=10)
+#dim1
+#dim2
+dim3
+dim4
+dim5
+#dim6
+#for (i in 1:ceiling(length(g.list))) {
+# tmp <- g.list[i]
+# plot <-     FeaturePlot(UNI, order = T, features = tmp, cols =c("light grey", "dark red"), min.cutoff= NA, max.cutoff= NA, reduction = "umap", dims = #c(1,2), pt.size=2, ncol=2, split.by = "OLDsampleID")
+#print(plot)}
+dev.off()
+```
+

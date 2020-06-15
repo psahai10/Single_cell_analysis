@@ -1,0 +1,224 @@
+---
+title: "results for PJ 190909"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r 1}
+# setup your own paths....
+###### REQUIRED LIBRARIES
+library(ggplot2)
+library(readr)
+library(readxl)
+library(data.table)
+library(rowr)
+library(reticulate)
+library(scatterplot3d)
+library(rgl) #interactive 3d plotting
+library(colorspace)
+library(ggmin)
+library(grid)
+library(gridExtra)
+library(future)
+library(sjmisc)
+
+library(velocyto.R)
+library(SeuratWrappers)
+library(Seurat)
+library(tidyverse)
+library(dplyr)
+
+getwd()
+
+
+```
+
+```{r 2 part1}
+getwd()
+library(velocyto.R)
+library(SeuratWrappers)
+
+getwd()
+
+#load integrated 22hpf dataset and use colors and embeddings####
+
+#sampleID <- c("14_drl_22hpf.etv2_wt_22hpf.etv2_mib_22hpf.fli1tp1_24hpf")
+#sampleID <- c("11_etv2_wt_22hpf.etv2_mib_22hpf_velocyto")
+#name <- paste0(sampleID, ".rds")
+#UNI <- readRDS(paste0("./integratedObjects/",name))
+
+sampleID <- paste0("14_drl_22hpf.etv2_wt_22hpf.etv2_mib_22hpf.fli1tp1_24hpf","_endo")
+name <- paste0(sampleID, ".rds")
+UNI.ORI <- readRDS(paste0("integratedObjects/",name))
+UNI
+  Idents(object = UNI.ORI) <- "OLDsampleID"
+  Idents(object = UNI.ORI) <- "customNames"
+  table(Idents(UNI.ORI))
+
+# Parameters that will be used for velo dataset
+ident.colors <- (scales::hue_pal())(n = length(x = levels(x = UNI.ORI)))
+names(x = ident.colors) <- levels(x = UNI.ORI)
+cell.colors <- ident.colors[Idents(object = UNI.ORI)]
+names(x = cell.colors) <- colnames(x = UNI.ORI)
+  temp <- names(cell.colors)
+  temp <- paste0(gsub("hpf_", "hpf_GRCz11.1:", temp),"x")
+  head(temp)
+  names(x = cell.colors) <- temp
+head(cell.colors)
+
+emb.ORI <- Embeddings(object = UNI.ORI, reduction = "umap")
+  temp <- rownames(emb.ORI)
+  temp <- paste0(gsub("hpf_", "hpf_GRCz11.1:", temp),"x")
+  head(temp)
+  rownames(emb.ORI) <- temp
+head(emb.ORI)
+
+#genelists####
+gene.list1 <- c('etv2','tal1','myb$','gata2',"runx1","pax2a","npas4l", "meox1", "pax3a", "tbx6", 'tbx16', "tbxta", "klf17", "lhx1", "lmo2", "lbx2", "hand2", "bmp4", "cdx4", "flt4", "hbb", "hba", "sox17", "sox32", "isl1", "isl2", "gata1a", "fli1a", "gfi","drl", "tcf15", "zulu", "mfap4$", "spi1", "flt4", "sdc2", "ta$", "twist1", "osr1", "mixl1", "nkx2.5", "nkx2.7", "cdh5", "mpx", "dll4", "hey2", "tbx1")
+gene.list2 <- c("etv2", "lmo2", "gata1a", "cdx4", "klf17", "tbx16$", "bmp4", "flt4","flt4", "dll4", "id1", "hey2", "efnb")
+gene.list3 <- c("flt4", "dll4", "id1", "hey2", "efnb")
+globins <-  sort(grep(pattern = "^hba|^hbb", rownames(UNI.ORI[["SCT"]]@data), value= TRUE, ignore.case = TRUE))
+fluo <- sort(grep(pattern = "Kaede|H2B-Dendra2|mCherry|EGFP", rownames(UNI.ORI[["SCT"]]@data), value= TRUE, ignore.case = TRUE))
+temp <- c("tbx6", "npas4l", "etv2", "tbxta", "osr1", "lhx1a")
+plot.list <- list(gene.list1, gene.list2, gene.list3, globins, fluo, temp) 
+#plot.list <- markerx
+
+{p.l. <- character()
+for (i in c(1:length(plot.list))) {p.l. <- c(p.l.,plot.list[[2]])} #SUBSET PLOLIST HERE!!!!!!!!!!
+plot.list <- p.l.
+    plot.list <- lapply(plot.list[1:length(plot.list)], function(x) {sort(grep(pattern = paste0("^",x), rownames(UNI.ORI[["SCT"]]@data), value= T, ignore.case = T))})
+    plot.list <- as.vector(unlist(plot.list))
+    plot.list <- sort(unique(as.vector(plot.list)))}
+plot.list
+
+getwd()
+#outputs1####
+#load velo files
+no <- 1
+{sampleID <- c("etv2_wt_22hpf",     #1
+               "etv2_mib_22hpf"     #2
+              )[no]  
+name <- paste0(sampleID, "_velocyto.rds")
+UNI <- readRDS(paste0("velocytoObjects/", name))} 
+
+# emb <- subset(emb.ORI, rownames(emb.ORI) %like% sampleID)
+emb <- subset(emb.ORI, rownames(emb.ORI) %like% sampleID)
+emb <- Embeddings(object = UNI, reduction = "umap")
+emb
+
+########## TEST START ###############
+p_wt <- DimPlot(UNI, group.by = "etv2_wt_22hpf","etv2_mib_22hpf"))
+p_wt
+
+p_mut <- DimPlot(UNI, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+p_mut
+
+
+UNI
+table(UNI@meta.data[["OLDsampleID"]])
+########## TEST END #################
+
+
+#pdf1
+{pdf(paste0("/Users/davidtraver/", "etv2_wt_22hpf" ,".pdf"), width=15,height=10)
+
+# Show
+Idents(object = UNI.ORI) <- "OLDsampleID"
+p <- DimPlot(object = UNI.ORI, cells = WhichCells(UNI.ORI, idents = sampleID), group.by = "customNames", reduction = "umap", label = TRUE, pt.size=3, label.size = 6) + labs(title=paste0(sampleID, ""))
+print(p)
+
+show.velocity.on.embedding.cor(emb = emb, 
+                               vel = Tool(object = UNI, slot = "RunVelocity"),
+                               do.par = F, 
+                               cell.colors = ac(x = cell.colors, alpha = 0.5), 
+                               n = 200,
+                               scale = "sqrt", 
+                               cex = 0.8, 
+                               arrow.scale = 3, 
+                               show.grid.flow = T, 
+                               min.grid.cell.mass = 0.5, 
+                               grid.n = 40, 
+                               arrow.lwd = 1,
+                               cell.border.alpha = 0.1)                                      
+
+for (i in 1:ceiling(length(plot.list)/4)) {p <- FeaturePlot(object = UNI.ORI, cells = WhichCells(UNI.ORI, idents = sampleID), order = T, features = plot.list[c(i*4-3):c(i*4)], cols =c("grey", "blue"), min.cutoff= NA, max.cutoff= NA, reduction = "umap", dims = c(1,2), pt.size=3)
+print(p)}
+
+for(i in 1:length(plot.list)) {gene <- plot.list[i]
+               print(gene)
+               par(mfrow	=	c(2,	2), cex = 1, cex.axis = 0.6, cex.main = 1)
+               gene.relative.velocity.estimates(UNI@assays[["spliced"]], 
+                                 UNI@assays[["unspliced"]],
+                                 cell.emb = emb,
+                                 old.fit = Tool(object = UNI, slot = "RunVelocity"),
+                                 do.par = F,
+                                 cell.colors = cell.colors, 
+                                 deltaT = 1, 
+                                 kCells = 60, 
+                                 kGenes = 1, 
+                                 fit.quantile = 0.02,
+                                 show.gene = gene)}
+dev.off()
+}
+                                  
+#outputs2####
+#load velo files
+no <- 2
+{sampleID <- c("etv2_wt_22hpf",     #1
+               "etv2_mib_22hpf"     #2
+              )[no]  
+name <- paste0(sampleID, "_velocyto.rds")
+UNI <- readRDS(paste0("./velocytoObjects/", name))} 
+emb <- subset(emb.ORI, rownames(emb.ORI) %like% sampleID)
+
+#pdf2
+{pdf(paste0("/Users/davidtraver/","2_part1_", sampleID,".pdf"), width=15,height=10)
+
+# Show
+Idents(object = UNI.ORI) <- "OLDsampleID"
+p <- DimPlot(object = UNI.ORI, cells = WhichCells(UNI.ORI, idents = sampleID), group.by = "customNames", reduction = "umap", label = TRUE, pt.size=3, label.size = 6) + labs(title="etv2_wt_22hpf")
+print(p)
+
+show.velocity.on.embedding.cor(emb = emb, 
+                               vel = Tool(object = UNI, slot = "RunVelocity"),
+                               do.par = F, 
+                               cell.colors = ac(x = cell.colors, alpha = 0.5), 
+                               n = 200,
+                               scale = "sqrt", 
+                               cex = 0.8, 
+                               arrow.scale = 3, 
+                               show.grid.flow = T, 
+                               min.grid.cell.mass = 0.5, 
+                               grid.n = 40, 
+                               arrow.lwd = 1,
+                               cell.border.alpha = 0.1)           
+
+
+for (i in 1:ceiling(length(plot.list)/4)) {p <- FeaturePlot(object = UNI.ORI, cells = WhichCells(UNI.ORI, idents = sampleID), order = T, features = plot.list[c(i*4-3):c(i*4)], cols =c("grey", "blue"), min.cutoff= NA, max.cutoff= NA, reduction = "umap", dims = c(1,2), pt.size=3)
+print(p)}
+
+for(i in 1:length(plot.list)) {gene <- plot.list[i]
+               print(gene)
+               par(mfrow	=	c(2,	2), cex = 1, cex.axis = 0.6, cex.main = 1)
+               gene.relative.velocity.estimates(UNI@assays[["spliced"]], 
+                                 UNI@assays[["unspliced"]],
+                                 cell.emb = emb,
+                                 old.fit = Tool(object = UNI, slot = "RunVelocity"),
+                                 do.par = F,
+                                 cell.colors = cell.colors, 
+                                 deltaT = 1, 
+                                 kCells = 60, 
+                                 kGenes = 1, 
+                                 fit.quantile = 0.02,
+                                 show.gene = gene)}
+dev.off()
+}
+
+
+
+```
+
+```{r 2 part3}

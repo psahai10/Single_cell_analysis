@@ -1,0 +1,232 @@
+---
+title: "results for PJ 190909"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+```{r 1}
+# setup your own paths....
+###### REQUIRED LIBRARIES
+library(ggplot2)
+library(readr)
+library(readxl)
+library(data.table)
+library(rowr)
+library(reticulate)
+library(scatterplot3d)
+library(rgl) #interactive 3d plotting
+library(colorspace)
+library(ggmin)
+library(grid)
+library(gridExtra)
+library(future)
+library(sjmisc)
+
+library(velocyto.R)
+library(SeuratWrappers)
+library(Seurat)
+library(tidyverse)
+library(dplyr)
+
+getwd()
+
+# LOAD DATA FROM RDS INTO UNI FILE
+sampleID <- paste0("14_drl_22hpf.etv2_wt_22hpf.etv2_mib_22hpf.fli1tp1_24hpf")#,"_endo")
+sampleID <- paste0("14_drl_22hpf.etv2_wt_22hpf.etv2_mib_22hpf.fli1tp1_24hpf","_endo")
+name <- paste0(sampleID, ".rds")
+UNI <- readRDS(paste0("integratedObjects/",name))
+UNI
+
+#1A-1####
+#### DIMPLOT --> DIMENSIONALITY REDUCTION PLOT
+#### GRAPHS THE OUTPUT OF A DIMENSIONAL REDUCTION TECHNIQUE ON A 2D SCATTER PLOT WHERE EACH POINT IS A CELL AND ITS POSITIONED
+##### BASED ON THE CELL EMBEDDINGS DETERMINED BY THE REDUCTION TECHNIQUE
+
+#### dim3 <- DimPlot(Seurat object, label=where to label the clusters, label.size= size of labels, pt.size = 1) + labs(title=name to give the sample)
+dim3 <- DimPlot(UNI, label=T, label.size = 8, pt.size = 1) + labs(title=sampleID)
+dim3
+
+UNI
+table(UNI@meta.data[["OLDsampleID"]])
+
+#1A-2####
+######### FINDALLMARKERS: FIND DIFFERENTIALLY EXPRESSED GENES FOR EACH IDENTITY IN A DATASET
+
+#### FindAllMarkers(OBJECT, only.pos = ONLY RETURN POSITIVE MARKERS, min.pct = ONLY TEST GENES THAT ARE DETECTED IN A MINIMUM FRACTION OF MIN.PCT
+##### IN EITHER OF THE TWO POPULATIONS. DEFAULT IS 0.1. , logfc.threshold = LIMIT TESTING TO GENES WHICH SHOW ON AVERAGE AT LEAST X-FOLD DIFFERENCE
+##### IN LOG SCALE BETWEEN THE TWO GROUP OF CELLS DEFAULT IS 0.25, return.thresh = ONLY RETURN MARKERS THAT HAVE A P-VALUE OF X)
+
+## All.markers <- FindAllMarkers(object = UNI, only.pos = T, min.pct = 0.25, logfc.threshold = 0.20, return.thresh = 0.1) #return.tresh to find the same as
+All.markers <- FindAllMarkers(object = UNI, min.pct = 0.25, logfc.threshold = 0.20, return.thresh = 0.1)
+head(All.markers)
+
+###### WRITE OUTPUT FILES WITH CSV FILES WITH
+write.csv(All.markers, "./export/190909/1A/DE_endothelium_22hpf.csv")
+
+##### FUNTIONS: GROUP_BY: TOP_N: A CONVINIENT WRAPPER THAT USES filter() AND min_rank() to select the top or bottom entries in each group, ordered
+###### by WT. top_n(x = a table to filter, n=number of rows to return, wt= optional variable used for ordering if not specified, defaults to the last variable
+##### in the table.) avg_logfc = AVERAGE LOG FOLDCHANGE
+
+topAll <- All.markers %>% group_by(cluster) %>% top_n(20, avg_logFC) %>% filter(avg_logFC>1)
+topAll
+
+##### ENABLES DOWNSTREAM PLOTTING AND ANALYSIS
+
+levels(UNI)
+levels(UNI) <- c("General Endothelium","Hemogenic endothelium","Pre-HCSs","BVECs","Endocardium","KVECs","SDECs")
+
+##### DoHeatmap FEATURE EXPRESSION HEATMAP
+##### DoHeatmap(Object, features= a vector of features to plot, cells= a vector of cells to plot, group.by= a vector of variables to group cellls by,
+##### group.bar = add a color bar showing group status for cells, displ.min, minimum display value; all values below are clipped displ.max, maximum display ##### value; all values above are clipped, slot = data slot to use; choose from 'raw.data', 'data', 'scale.data', label = label the cell identity above the ##### color bar, size= size of text above color bar, hjust = horizontal justification of text above color bar, angle= angle of text above color bar, raster= ##### TRUE or False; goem_raster or geom_tile, combine = combine plots into a single gg object.)
+
+all <- DoHeatmap(UNI, features = topAll$gene, cells = WhichCells(UNI, idents = NULL, downsample = 2500), group.by = "ident", group.bar = T, disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 5, hjust = 0, angle = 45, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+
+#### scale_fill_gradientn <-- adds expression bar heatmap from blue to red
+
+dim4 <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE)
+dim4
+
+
+#1A-3####
+######  PLOT THE AVAREGE EXPRESSION ACROSS DIFFERENT CELL TYPES
+###### individual heatmaps for different genes
+########## TEST START ###############
+SDECs < - subset(UNI, idents = 'SDECs')
+
+########## TEST END #################
+
+avg.UNI <- log1p(AverageExpression(UNI, verbose = T, assays = "SCT", slot = "data")$SCT)
+rownames <- rownames(avg.UNI)
+avg.UNI$gene <- rownames
+avg.UNI
+
+topDiffa <- avg.UNI %>% top_n((10), `Pre-HCSs`) %>% arrange(desc(`Pre-HCSs`))
+topDiffa <- topDiffa$gene
+topDiffa
+
+topDiffb <- avg.UNI %>% top_n((10), `Hemogenic endothelium`) %>% arrange(desc(`Hemogenic endothelium`))
+topDiffb <- topDiffb$gene
+topDiffb
+
+topDiffc <- avg.UNI %>% top_n((10), `General Endothelium`) %>% arrange(desc(`General Endothelium`))
+topDiffc <- topDiffc$gene
+topDiffc
+
+topDiffd <- avg.UNI %>% top_n((10), `KVECs`) %>% arrange(desc(`KVECs`))
+topDiffd <- topDiffd$gene
+topDiffd
+
+topDiffe <- avg.UNI %>% top_n((10), `BVECs`) %>% arrange(desc(`BVECs`))
+topDiffe <- topDiffe$gene
+topDiffe
+
+topDifff <- avg.UNI %>% top_n((10), `SDECs`) %>% arrange(desc(`SDECs`))
+topDifff <- topDifff$gene
+topDifff
+
+topDiffg <- avg.UNI %>% top_n((10), `Endocardium`) %>% arrange(desc(`Endocardium`))
+topDiffg <- topDiffg$gene
+topDiffg
+
+topDiff <- c(topDiffa,topDiffb,topDiffc,topDiffd,topDiffe,topDifff, topDiffg)
+topDiff
+
+#%>% arrange(avg_logFC) %>% filter(avg_logFC < 0) %>% filter(pct.1 < 0.8)
+#rownames(avg.UNI)[1:10]
+
+theme <- scale_fill_gradientn(colors = colorRampPalette(c("blue", "black", "green"))(256))
+theme <- scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white")
+
+DoHeatmap(UNI, features = topDiffa, cells = WhichCells(UNI, idents = c(), downsample = 10), group.by = NULL, group.bar = TRUE, disp.min = -3, disp.max = NULL, slot = "data", assay = "SCT", label = TRUE, size = 3, hjust = 0, angle = 90, raster = TRUE, combine = T,group.bar.height = 0.02, draw.lines = T) + theme
+
+DoHeatmap(UNI, features = topDiffb, cells = WhichCells(UNI, idents = c(), downsample = 10), group.by = NULL, group.bar = TRUE, disp.min = -3, disp.max = NULL, slot = "data", assay = "SCT", label = TRUE, size = 3, hjust = 0, angle = 90, raster = TRUE, combine = T,group.bar.height = 0.02, draw.lines = T) + theme
+
+DoHeatmap(UNI, features = topDiffc, cells = WhichCells(UNI, idents = c(), downsample = 10), group.by = NULL, group.bar = TRUE, disp.min = -3, disp.max = NULL, slot = "data", assay = "SCT", label = TRUE, size = 3, hjust = 0, angle = 90, raster = TRUE, combine = T,group.bar.height = 0.02, draw.lines = T) + theme
+
+DoHeatmap(UNI, features = topDiffd, cells = WhichCells(UNI, idents = c(), downsample = 10), group.by = NULL, group.bar = TRUE, disp.min = -3, disp.max = NULL, slot = "data", assay = "SCT", label = TRUE, size = 3, hjust = 0, angle = 90, raster = TRUE, combine = T,group.bar.height = 0.02, draw.lines = T) + theme
+
+DoHeatmap(UNI, features = topDiffe, cells = WhichCells(UNI, idents = c(), downsample = 10), group.by = NULL, group.bar = TRUE, disp.min = -3, disp.max = NULL, slot = "data", assay = "SCT", label = TRUE, size = 3, hjust = 0, angle = 90, raster = TRUE, combine = T,group.bar.height = 0.02, draw.lines = T) + theme
+
+DoHeatmap(UNI, features = topDifff, cells = WhichCells(UNI, idents = c(), downsample = 10), group.by = NULL, group.bar = TRUE, disp.min = -3, disp.max = NULL, slot = "data", assay = "SCT", label = TRUE, size = 3, hjust = 0, angle = 90, raster = TRUE, combine = T,group.bar.height = 0.02, draw.lines = T) + theme
+
+DoHeatmap(UNI, features = topDiffg, cells = WhichCells(UNI, idents = c(), downsample = 10), group.by = NULL, group.bar = TRUE, disp.min = -3, disp.max = NULL, slot = "data", assay = "SCT", label = TRUE, size = 3, hjust = 0, angle = 90, raster = TRUE, combine = T, group.bar.height = 0.02, draw.lines = T) + theme
+
+######################################################################################################################################################
+#1A-4####
+genes.sums <- data.frame(Matrix::rowSums(UNI[["SCT"]]@counts))
+genes.counts <- rowSums(data.frame(UNI[["SCT"]]@counts) !=0) 
+genes.SCT <- cbind(rownames(genes.sums), genes.sums, genes.counts)
+colnames(genes.SCT) <- c("ID","sums","counts")
+rownames(genes.SCT) <- c(1:nrow(genes.SCT))
+subset(genes.SCT, grepl(pattern = "mfap", genes.SCT$ID))
+  head(genes.SCT)
+  
+ECgenes <- c("tbx1", "six2a", "osr1", "pax2b", "en2a", "tbx20", "gata2b", "gata4", "gata5", "hand2", "fn1b", "fras1", "fgf8a", "dlc", "dll4", "flt4", "efnb2a", "ephb4a", "ephb4b", "nrp1b", "fn1a")
+ECgenes
+
+SDECgenes <- c("bmp4", "cxcr4a", "cxcr4b", "cldni", "tmsb1", "col7a1", "tp63", "lama5", "mmp30", "sparc", "dcn", "apoeb", "angptl4")  
+SDECgenes
+
+markerx <- ECgenes
+markerx <- SDECgenes
+  # OK
+markerx_ok <- markerx[(markerx %in% genes.SCT$ID)]
+  markerx_ok
+# NOT FOUND
+markerx_error <- markerx[!(markerx %in% genes.SCT$ID)]
+  markerx_error
+  
+
+
+all <- DoHeatmap(UNI, features = ECgenes, cells = WhichCells(UNI, idents = NULL, downsample = 50), group.by = "ident", group.bar = T, disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 5, hjust = 0, angle = 45, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+dim5 <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE)
+dim5
+
+all <- DoHeatmap(UNI, features = SDECgenes, cells = WhichCells(UNI, idents = NULL, downsample = 2500), group.by = "ident", group.bar = T, disp.min = -2, disp.max = NULL, slot = "scale.data", assay = "SCT", label = T, size = 6, hjust = 0, angle = 45, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+dim6 <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE) + theme(text = element_text(size = 20))
+dim6
+
+all <- DoHeatmap(UNI, features = SDECgenes, cells = WhichCells(UNI, idents = "SDECs", downsample = 2500), group.by = "ident", group.bar = T, disp.min = -5, disp.max = NULL, slot = "scale.data", assay = "SCT", label = F, size = 5, hjust = 0, angle = 45, draw.lines = T, raster = TRUE, combine = TRUE, group.bar.height = 0.000000001)
+dim7 <- all + scale_fill_gradientn(colors = rev(RColorBrewer::brewer.pal(n = 10, name = "RdBu")), na.value = "white") + guides(color=FALSE) + labs(title="SDECs") + theme(plot.title = element_text(size = 30,hjust = 0.5,vjust = -2)) + theme(text = element_text(size = 20))
+dim7
+
+
+
+pdf(paste0("./export/190909/", "1.pdf"), width=15,height=10)
+dim3
+dim4
+dim5
+
+for (j in 1:ceiling(length(ECgenes)/4)) {
+plot <- FeaturePlot(UNI, order = T, features = ECgenes[c(j*4-3):c(j*4)], cols =c("light grey", "dark red"), min.cutoff= NA, max.cutoff= NA, reduction = "umap", dims = c(1,2), pt.size=4) + guides(shape = F) + theme(legend.text = element_text(size = 5), legend.key.size = unit(0.5, "inch"), legend.key.width = unit(0.1,"inch") )
+print(plot)
+}
+
+for (j in seq(1,length(ECgenes),1)) {
+plot <- FeaturePlot(UNI, order = T, features = ECgenes[j], cols =c("light grey", "dark red"), min.cutoff= NA, max.cutoff= NA, reduction = "umap", dims = c(1,2), pt.size=4, shape.by = "OLDsampleID") + facet_wrap("OLDsampleID", ncol=2) + guides(shape = F) + theme(legend.text = element_text(size = 5), legend.key.size = unit(0.5, "inch"), legend.key.width = unit(0.1,"inch") )
+print(plot)
+}
+
+##by 4
+#for (i in 1:ceiling(length(ECgenes)/4)) {
+#p <- VlnPlot(UNI, features = ECgenes[c(i*4-3):c(i*4)], log = T, slot = "data",  sort = T, ncol = 2, pt.size = 0.2) 
+#print(p)}
+#
+##by 1
+#for (i in seq(1,length(ECgenes),1)) {
+#p <- VlnPlot(UNI, features = ECgenes[i], log = T, slot = "data",  sort = T, ncol = 2, pt.size = 0.2) + guides(shape = F) + theme(legend.text = #element_text(size = 5), legend.key.size = unit(0.5, "inch"), legend.key.width = unit(0.1,"inch")) 
+#print(p)}
+#
+#by 1 but split.by
+for (i in seq(1,length(ECgenes),1)) {
+p <- VlnPlot(UNI, features = ECgenes[i], log = T, slot = "scale.data",  sort = T, ncol = 2, pt.size = 0.2, split.by = "OLDsampleID") + guides(shape = F) + theme(legend.text = element_text(size = 15), legend.key.size = unit(0.4, "inch"), legend.key.width = unit(0.2,"inch")) 
+print(p)}
+
+dim6
+dim7
+
+dev.off()
+
